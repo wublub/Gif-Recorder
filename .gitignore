@@ -1,0 +1,30 @@
+# ===== .NET / Visual Studio / WPF =====
+
+# 构建产物
+bin/
+obj/
+dist/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider
+.idea/
+
+# VS Code
+.vscode/
+
+# 日志/临时文件
+*.log
+*.tmp
+
+# 调试符号（发布/分发通常不需要）
+*.pdb
+
+# Windows
+Thumbs.db
+Desktop.ini

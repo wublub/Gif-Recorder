@@ -1,0 +1,112 @@
+<Window x:Class="GifRecorder.TrimWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="裁剪素材"
+        Width="980"
+        Height="720"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="12" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="12" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock FontSize="18" FontWeight="SemiBold" Text="裁剪（保留/删除区间）" />
+            <TextBlock Margin="0,6,0,0" Foreground="#666" TextWrapping="Wrap"
+                       Text="用下方进度条移动到时间点：先点“标记起点”，再点“添加保留”或“添加删除”生成区间。右侧可删除/清空区间。" />
+        </StackPanel>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="14" />
+                <ColumnDefinition Width="320" />
+            </Grid.ColumnDefinitions>
+
+            <!-- 左侧：预览 + 时间轴 -->
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="10" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="6" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="10" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Background="#111" CornerRadius="10">
+                    <Image x:Name="PreviewImage" Stretch="Uniform" />
+                </Border>
+
+                <Slider x:Name="TimeSlider" Grid.Row="2" Minimum="0" Maximum="1" ValueChanged="TimeSlider_OnValueChanged" />
+
+                <Grid Grid.Row="4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock x:Name="InfoTextBlock" Grid.Column="0" Foreground="#666" />
+                    <TextBlock x:Name="CurrentTimeTextBlock" Grid.Column="1" HorizontalAlignment="Center" Foreground="#666" />
+                    <TextBlock x:Name="MarkTextBlock" Grid.Column="2" HorizontalAlignment="Right" Foreground="#666" />
+                </Grid>
+
+                <Canvas x:Name="RangeCanvas" Grid.Row="6" Height="28" Background="#F2F2F2" SizeChanged="RangeCanvas_OnSizeChanged" />
+            </Grid>
+
+            <!-- 右侧：区间列表 -->
+            <Border Grid.Column="2" Background="#F7F7F7" CornerRadius="10" Padding="12">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="10" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="10" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="10" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock FontWeight="SemiBold" Text="区间列表" />
+
+                    <ListBox x:Name="RangesListBox" Grid.Row="2" DisplayMemberPath="DisplayText" />
+
+                    <WrapPanel Grid.Row="4">
+                        <Button Width="120" Height="32" Margin="0,0,10,10" Click="DeleteRangeButton_OnClick">删除选中</Button>
+                        <Button Width="120" Height="32" Margin="0,0,10,10" Click="ClearRangesButton_OnClick">清空区间</Button>
+                    </WrapPanel>
+
+                    <StackPanel Grid.Row="6">
+                        <TextBlock Foreground="#666" TextWrapping="Wrap"
+                                   Text="颜色提示：绿色=保留，红色=删除。若设置了保留区间，则只保留绿色内的内容，再扣掉红色。" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <WrapPanel Grid.Column="0">
+                <Button x:Name="PlayPauseButton" Width="120" Height="34" Margin="0,0,10,0" Click="PlayPauseButton_OnClick">播放</Button>
+                <Button Width="120" Height="34" Margin="0,0,10,0" Click="MarkStartButton_OnClick">标记起点</Button>
+                <Button Width="120" Height="34" Margin="0,0,10,0" Click="AddKeepButton_OnClick">添加保留</Button>
+                <Button Width="120" Height="34" Margin="0,0,10,0" Click="AddRemoveButton_OnClick">添加删除</Button>
+            </WrapPanel>
+
+            <WrapPanel Grid.Column="1">
+                <Button Width="90" Height="34" Margin="0,0,10,0" Click="CancelButton_OnClick">取消</Button>
+                <Button Width="110" Height="34" Click="ApplyButton_OnClick">应用裁剪</Button>
+            </WrapPanel>
+        </Grid>
+    </Grid>
+</Window>
