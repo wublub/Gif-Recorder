@@ -43,6 +43,21 @@
 dotnet run -c Debug -r win-x64
 ```
 
+## 下载（推荐）
+
+请到 GitHub Releases 下载已打包好的 exe：
+
+- 免安装版（推荐大多数用户）：`GifRecorder-win-x64-self-contained.exe`
+  - 优点：拷贝到任意 Windows 64 位电脑即可运行
+  - 缺点：体积更大
+- 体积最小版（方案 C）：`GifRecorder-win-x64-framework-dependent.exe`
+  - 优点：体积更小
+  - 缺点：需要目标电脑安装 **.NET 8 Windows Desktop Runtime**
+
+下载入口：仓库页面 → **Releases**。
+
+---
+
 ## 发布（给其他电脑使用）
 
 ### 方案 C：框架依赖（体积更小）单文件 exe
@@ -78,15 +93,3 @@ dotnet publish -c Release -r win-x64 --self-contained true \
 - Magick.NET（GIF 编码/处理）
 - OpenCvSharp（视频相关处理/编码链路）
 - SharpAvi（AVI 输出）
-
-## 常见问题
-
-### 1) 发布的 exe 体积为什么很大？
-- 自包含发布会把 .NET 运行时打进包里，体积会明显变大。
-- OpenCV / ImageMagick 等原生库本身也很大。
-
-### 2) 为什么会提示快捷键注册失败？
-- `Alt + G` 可能被其他软件占用
-- 或权限/系统策略限制全局热键注册
-
-请查看主窗口“状态”提示信息。
