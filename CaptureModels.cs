@@ -24,6 +24,19 @@ public enum GifQuality
     High
 }
 
+public enum FileSizeAdjustmentStrategy
+{
+    Balanced,
+    PreferQuality,
+    PreferSmoothness
+}
+
+public enum SizeLimitExceededBehavior
+{
+    ExportSmallestWithWarning,
+    Abort
+}
+
 public sealed record GifQualityPreset(
     GifQuality Quality,
     string DisplayName,
@@ -47,6 +60,10 @@ public sealed record GifQualityPreset(
             UseDither = UseDither,
             OptimizeFrames = OptimizeFrames,
             AviJpegQuality = AviJpegQuality,
+            EnableMaxFileSize = false,
+            MaxFileSizeMb = 10,
+            FileSizeAdjustmentStrategy = FileSizeAdjustmentStrategy.Balanced,
+            SizeLimitExceededBehavior = SizeLimitExceededBehavior.ExportSmallestWithWarning,
             EnableTrim = false,
             KeepRangesText = string.Empty,
             RemoveRangesText = string.Empty
@@ -125,11 +142,23 @@ public sealed class ExportOptions
 
     public int AviJpegQuality { get; init; } = 80;
 
+    public bool EnableMaxFileSize { get; init; }
+
+    public int MaxFileSizeMb { get; init; } = 10;
+
+    public FileSizeAdjustmentStrategy FileSizeAdjustmentStrategy { get; init; } = FileSizeAdjustmentStrategy.Balanced;
+
+    public SizeLimitExceededBehavior SizeLimitExceededBehavior { get; init; } = SizeLimitExceededBehavior.ExportSmallestWithWarning;
+
     public bool EnableTrim { get; init; }
 
     public string KeepRangesText { get; init; } = string.Empty;
 
     public string RemoveRangesText { get; init; } = string.Empty;
+
+    public bool IsGifSizeLimitEnabled => Format == ExportFormat.Gif && EnableMaxFileSize;
+
+    public long MaxFileSizeBytes => Math.Max(1L, MaxFileSizeMb) * 1024L * 1024L;
 
     public int DelayCentiseconds => Math.Max(1, (int)Math.Round(100d / Math.Max(1, ExportFps)));
 }

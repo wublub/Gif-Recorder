@@ -35,7 +35,15 @@ public sealed class GifEncoderService
                     SaveMp4(frames, outputPath, options, cancellationToken);
                     break;
                 default:
-                    SaveGif(frames, outputPath, options, cancellationToken);
+                    if (options.IsGifSizeLimitEnabled)
+                    {
+                        SaveGifWithSizeLimit(frames, outputPath, options, cancellationToken);
+                    }
+                    else
+                    {
+                        SaveGif(frames, outputPath, options, cancellationToken);
+                    }
+
                     break;
             }
         }, cancellationToken);
@@ -160,6 +168,264 @@ public sealed class GifEncoderService
         }
 
         return TimeSpan.FromSeconds(second);
+    }
+
+    private static void SaveGifWithSizeLimit(IReadOnlyList<RecordedFrame> frames, string outputPath, ExportOptions options, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var maxBytes = options.MaxFileSizeBytes;
+            if (maxBytes <= 0)
+            {
+                SaveGif(frames, outputPath, options, cancellationToken);
+                return;
+            }
+
+            var outputDirectory = Path.GetDirectoryName(outputPath);
+            if (string.IsNullOrWhiteSpace(outputDirectory))
+            {
+                outputDirectory = Environment.CurrentDirectory;
+            }
+
+            var baseName = Path.GetFileNameWithoutExtension(outputPath);
+            var attemptPath = Path.Combine(outputDirectory, baseName + ".tmp" + Path.GetExtension(outputPath));
+
+            Exception? lastError = null;
+            ExportOptions? smallestOptions = null;
+            string? smallestPath = null;
+            long smallestBytes = long.MaxValue;
+
+            foreach (var attemptOptions in BuildGifSizeLimitAttempts(options))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                try
+                {
+                    if (File.Exists(attemptPath))
+                    {
+                        File.Delete(attemptPath);
+                    }
+
+                    SaveGif(frames, attemptPath, attemptOptions, cancellationToken);
+
+                    var info = new FileInfo(attemptPath);
+                    var bytes = info.Exists ? info.Length : long.MaxValue;
+
+                    if (bytes < smallestBytes)
+                    {
+                        smallestBytes = bytes;
+                        smallestOptions = attemptOptions;
+                        smallestPath = attemptPath;
+                    }
+
+                    if (bytes <= maxBytes)
+                    {
+                        ReplaceFile(attemptPath, outputPath);
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex;
+                }
+            }
+
+            if (smallestPath is not null && File.Exists(smallestPath) && smallestOptions is not null)
+            {
+                if (options.SizeLimitExceededBehavior == SizeLimitExceededBehavior.ExportSmallestWithWarning)
+                {
+                    ReplaceFile(smallestPath, outputPath);
+
+                    var targetMb = options.MaxFileSizeMb;
+                    var actualMb = smallestBytes / (1024d * 1024d);
+                    throw new InvalidOperationException($"已尝试自动压缩，但仍无法将文件控制在 {targetMb}MB 内。\n已输出最小版本（约 {actualMb:0.##}MB）。");
+                }
+
+                throw new InvalidOperationException($"已尝试自动压缩，但仍无法将文件控制在 {options.MaxFileSizeMb}MB 内。", lastError);
+            }
+
+            throw new InvalidOperationException("导出失败：无法生成任何有效的 GIF。", lastError);
+        }
+        finally
+        {
+            DisposeFrames(frames);
+        }
+    }
+
+    private static void ReplaceFile(string sourcePath, string destinationPath)
+    {
+        if (File.Exists(destinationPath))
+        {
+            File.Delete(destinationPath);
+        }
+
+        File.Move(sourcePath, destinationPath);
+    }
+
+    private static IEnumerable<ExportOptions> BuildGifSizeLimitAttempts(ExportOptions initial)
+    {
+        // 这里返回一组“逐步变小”的导出参数。
+        // 注意：不要修改 initial 本身，避免污染用户选择。
+
+        static ExportOptions With(
+            ExportOptions o,
+            int? exportFps = null,
+            int? maxWidth = null,
+            int? colorCount = null,
+            bool? useDither = null,
+            bool? optimizeFrames = null)
+        {
+            return new ExportOptions
+            {
+                Format = o.Format,
+                ExportFps = exportFps ?? o.ExportFps,
+                MaxWidth = maxWidth ?? o.MaxWidth,
+                ColorCount = colorCount ?? o.ColorCount,
+                UseDither = useDither ?? o.UseDither,
+                OptimizeFrames = optimizeFrames ?? o.OptimizeFrames,
+                AviJpegQuality = o.AviJpegQuality,
+                EnableMaxFileSize = o.EnableMaxFileSize,
+                MaxFileSizeMb = o.MaxFileSizeMb,
+                FileSizeAdjustmentStrategy = o.FileSizeAdjustmentStrategy,
+                SizeLimitExceededBehavior = o.SizeLimitExceededBehavior,
+                EnableTrim = o.EnableTrim,
+                KeepRangesText = o.KeepRangesText,
+                RemoveRangesText = o.RemoveRangesText
+            };
+        }
+
+        var fps0 = Math.Clamp(initial.ExportFps, 1, 60);
+        var width0 = Math.Max(0, initial.MaxWidth);
+        var colors0 = Math.Clamp(initial.ColorCount, 2, 256);
+
+        // 统一先尝试原始参数
+        yield return With(initial);
+
+        var strategy = initial.FileSizeAdjustmentStrategy;
+
+        // 一组候选值（从“略降”到“很小”）
+        var widthCandidates = new[]
+        {
+            width0,
+            ClampNonZero(width0, 1600),
+            ClampNonZero(width0, 1280),
+            ClampNonZero(width0, 960),
+            ClampNonZero(width0, 720),
+            ClampNonZero(width0, 540)
+        }.Distinct().ToArray();
+
+        var colorCandidates = new[]
+        {
+            colors0,
+            Math.Min(colors0, 128),
+            Math.Min(colors0, 96),
+            Math.Min(colors0, 64),
+            Math.Min(colors0, 48),
+            Math.Min(colors0, 32)
+        }.Distinct().Select(v => Math.Clamp(v, 2, 256)).ToArray();
+
+        var fpsCandidates = new[]
+        {
+            fps0,
+            Math.Min(fps0, 15),
+            Math.Min(fps0, 12),
+            Math.Min(fps0, 10),
+            Math.Min(fps0, 8),
+            Math.Min(fps0, 6)
+        }.Distinct().Select(v => Math.Clamp(v, 1, 60)).ToArray();
+
+        // 组合顺序按策略决定（简单实现：逐步固定一个维度再推进下一个）
+        switch (strategy)
+        {
+            case FileSizeAdjustmentStrategy.PreferQuality:
+                foreach (var cc in colorCandidates)
+                {
+                    yield return With(initial, colorCount: cc);
+                }
+
+                if (initial.UseDither)
+                {
+                    yield return With(initial, colorCount: Math.Min(colors0, 64), useDither: false);
+                }
+
+                foreach (var fps in fpsCandidates)
+                {
+                    yield return With(initial, exportFps: fps);
+                }
+
+                foreach (var w in widthCandidates)
+                {
+                    yield return With(initial, maxWidth: w);
+                }
+
+                break;
+
+            case FileSizeAdjustmentStrategy.PreferSmoothness:
+                foreach (var cc in colorCandidates)
+                {
+                    yield return With(initial, colorCount: cc);
+                }
+
+                if (initial.UseDither)
+                {
+                    yield return With(initial, colorCount: Math.Min(colors0, 64), useDither: false);
+                }
+
+                foreach (var w in widthCandidates)
+                {
+                    yield return With(initial, maxWidth: w);
+                }
+
+                // 最后才降 fps
+                foreach (var fps in fpsCandidates)
+                {
+                    yield return With(initial, exportFps: fps);
+                }
+
+                break;
+
+            default:
+                // Balanced
+                foreach (var cc in colorCandidates)
+                {
+                    yield return With(initial, colorCount: cc);
+                }
+
+                if (initial.UseDither)
+                {
+                    yield return With(initial, colorCount: Math.Min(colors0, 64), useDither: false);
+                }
+
+                foreach (var w in widthCandidates)
+                {
+                    yield return With(initial, maxWidth: w);
+                }
+
+                foreach (var fps in fpsCandidates)
+                {
+                    yield return With(initial, exportFps: fps);
+                }
+
+                break;
+        }
+
+        // 最极限兜底：尽量小
+        yield return With(initial,
+            exportFps: Math.Min(fps0, 6),
+            maxWidth: ClampNonZero(width0, 540),
+            colorCount: 32,
+            useDither: false,
+            optimizeFrames: true);
+
+        static int ClampNonZero(int original, int max)
+        {
+            if (original <= 0)
+            {
+                return 0;
+            }
+
+            return Math.Min(original, max);
+        }
     }
 
     private static void SaveGif(IReadOnlyList<RecordedFrame> frames, string outputPath, ExportOptions options, CancellationToken cancellationToken)

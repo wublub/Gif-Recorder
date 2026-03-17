@@ -253,7 +253,18 @@ public partial class MainWindow : Window
             ExportButton.IsEnabled = false;
             StatusTextBlock.Text = "正在导出，请稍候...";
 
-            await _gifEncoderService.SaveAsync(_currentSession, outputPath, _lastExportOptions);
+            try
+            {
+                await _gifEncoderService.SaveAsync(_currentSession, outputPath, _lastExportOptions);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException && ex.Message.Contains("已输出最小版本"))
+            {
+                // 当启用“按文件大小限制”且仍无法满足目标时：
+                // SaveAsync 会用异常携带提示信息，但文件已经成功输出到目标路径。
+                StatusTextBlock.Text = $"导出完成：{outputPath}";
+                System.Windows.MessageBox.Show(this, ex.Message, "已导出（已尽量压缩）", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
 
             StatusTextBlock.Text = $"导出完成：{outputPath}";
             System.Windows.MessageBox.Show(this, $"已导出到：\n{outputPath}", "导出成功", MessageBoxButton.OK, MessageBoxImage.Information);

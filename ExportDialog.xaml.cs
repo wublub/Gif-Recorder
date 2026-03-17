@@ -42,7 +42,21 @@ public partial class ExportDialog : Window
         OptimizeFramesCheckBox.IsChecked = initialOptions.OptimizeFrames;
         AviQualityTextBox.Text = Math.Clamp(initialOptions.AviJpegQuality, 1, 100).ToString();
 
+        EnableMaxFileSizeCheckBox.IsChecked = initialOptions.EnableMaxFileSize;
+        MaxFileSizeMbTextBox.Text = Math.Max(1, initialOptions.MaxFileSizeMb).ToString();
+
+        AdjustmentStrategyComboBox.Items.Add(new ComboBoxItem { Tag = FileSizeAdjustmentStrategy.Balanced, Content = "均衡（推荐）" });
+        AdjustmentStrategyComboBox.Items.Add(new ComboBoxItem { Tag = FileSizeAdjustmentStrategy.PreferQuality, Content = "优先画质" });
+        AdjustmentStrategyComboBox.Items.Add(new ComboBoxItem { Tag = FileSizeAdjustmentStrategy.PreferSmoothness, Content = "优先流畅" });
+
+        ExceededBehaviorComboBox.Items.Add(new ComboBoxItem { Tag = SizeLimitExceededBehavior.ExportSmallestWithWarning, Content = "仍导出最小版本并提示" });
+        ExceededBehaviorComboBox.Items.Add(new ComboBoxItem { Tag = SizeLimitExceededBehavior.Abort, Content = "取消导出并提示" });
+
+        SetAdjustmentStrategy(initialOptions.FileSizeAdjustmentStrategy);
+        SetExceededBehavior(initialOptions.SizeLimitExceededBehavior);
+
         RefreshFormatUi();
+        RefreshSizeLimitUi();
     }
 
     private void FormatComboBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -82,7 +96,15 @@ public partial class ExportDialog : Window
             || ColorCountLabel is null
             || ColorCountTextBox is null
             || GifOptionsPanel is null
-            || AviOptionsPanel is null)
+            || AviOptionsPanel is null
+            || EnableMaxFileSizeCheckBox is null
+            || MaxFileSizeMbTextBox is null
+            || AdjustmentStrategyComboBox is null
+            || ExceededBehaviorComboBox is null
+            || SizeLimitLabel is null
+            || SizeLimitPanel is null
+            || SizeLimitHintTextBlock is null
+            || SizeLimitSettingsPanel is null)
         {
             return;
         }
@@ -97,6 +119,88 @@ public partial class ExportDialog : Window
         GifOptionsPanel.Visibility = isGif ? Visibility.Visible : Visibility.Collapsed;
 
         AviOptionsPanel.Visibility = isAvi ? Visibility.Visible : Visibility.Collapsed;
+
+        if (SizeLimitLabel is not null)
+        {
+            SizeLimitLabel.Visibility = isGif ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        if (SizeLimitPanel is not null)
+        {
+            SizeLimitPanel.Visibility = isGif ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        if (SizeLimitHintTextBlock is not null)
+        {
+            SizeLimitHintTextBlock.Visibility = isGif ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        RefreshSizeLimitUi();
+    }
+
+    private void EnableMaxFileSizeCheckBox_OnChanged(object sender, RoutedEventArgs e)
+    {
+        RefreshSizeLimitUi();
+    }
+
+    private void RefreshSizeLimitUi()
+    {
+        if (EnableMaxFileSizeCheckBox is null || SizeLimitSettingsPanel is null)
+        {
+            return;
+        }
+
+        var enabled = EnableMaxFileSizeCheckBox.IsChecked == true;
+        SizeLimitSettingsPanel.IsEnabled = enabled;
+        SizeLimitSettingsPanel.Opacity = enabled ? 1.0 : 0.55;
+    }
+
+    private FileSizeAdjustmentStrategy GetSelectedAdjustmentStrategy()
+    {
+        if (AdjustmentStrategyComboBox?.SelectedItem is ComboBoxItem item && item.Tag is FileSizeAdjustmentStrategy value)
+        {
+            return value;
+        }
+
+        return FileSizeAdjustmentStrategy.Balanced;
+    }
+
+    private SizeLimitExceededBehavior GetSelectedExceededBehavior()
+    {
+        if (ExceededBehaviorComboBox?.SelectedItem is ComboBoxItem item && item.Tag is SizeLimitExceededBehavior value)
+        {
+            return value;
+        }
+
+        return SizeLimitExceededBehavior.ExportSmallestWithWarning;
+    }
+
+    private void SetAdjustmentStrategy(FileSizeAdjustmentStrategy value)
+    {
+        foreach (var obj in AdjustmentStrategyComboBox.Items)
+        {
+            if (obj is ComboBoxItem item && item.Tag is FileSizeAdjustmentStrategy v && v == value)
+            {
+                AdjustmentStrategyComboBox.SelectedItem = item;
+                return;
+            }
+        }
+
+        AdjustmentStrategyComboBox.SelectedIndex = 0;
+    }
+
+    private void SetExceededBehavior(SizeLimitExceededBehavior value)
+    {
+        foreach (var obj in ExceededBehaviorComboBox.Items)
+        {
+            if (obj is ComboBoxItem item && item.Tag is SizeLimitExceededBehavior v && v == value)
+            {
+                ExceededBehaviorComboBox.SelectedItem = item;
+                return;
+            }
+        }
+
+        ExceededBehaviorComboBox.SelectedIndex = 0;
     }
 
     private ExportFormat GetSelectedFormat()
@@ -154,6 +258,10 @@ public partial class ExportDialog : Window
                 UseDither = UseDitherCheckBox.IsChecked == true,
                 OptimizeFrames = OptimizeFramesCheckBox.IsChecked == true,
                 AviJpegQuality = ParseInt(AviQualityTextBox.Text, 1, 100, "AVI 质量"),
+                EnableMaxFileSize = EnableMaxFileSizeCheckBox.IsChecked == true,
+                MaxFileSizeMb = ParseInt(MaxFileSizeMbTextBox.Text, 1, 4096, "最大文件大小（MB）"),
+                FileSizeAdjustmentStrategy = GetSelectedAdjustmentStrategy(),
+                SizeLimitExceededBehavior = GetSelectedExceededBehavior(),
                 EnableTrim = false,
                 KeepRangesText = string.Empty,
                 RemoveRangesText = string.Empty

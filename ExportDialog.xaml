@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="导出设置"
         Width="420"
-        Height="440"
+        Height="620"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize">
     <Grid Margin="16">
@@ -25,6 +25,12 @@
                 </Grid.ColumnDefinitions>
 
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="10" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="10" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="10" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="10" />
                     <RowDefinition Height="Auto" />
@@ -68,6 +74,29 @@
                     <TextBlock VerticalAlignment="Center" Text="AVI 质量" Margin="0,0,8,0" />
                     <TextBox x:Name="AviQualityTextBox" Width="120" />
                 </StackPanel>
+
+                <TextBlock x:Name="SizeLimitLabel" Grid.Row="14" Grid.Column="0" VerticalAlignment="Top" Text="文件大小限制" />
+                <StackPanel x:Name="SizeLimitPanel" Grid.Row="14" Grid.Column="1">
+                    <CheckBox x:Name="EnableMaxFileSizeCheckBox" Content="限制导出文件不超过指定大小" Checked="EnableMaxFileSizeCheckBox_OnChanged" Unchecked="EnableMaxFileSizeCheckBox_OnChanged" />
+                    <StackPanel x:Name="SizeLimitSettingsPanel" Margin="0,8,0,0">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBox x:Name="MaxFileSizeMbTextBox" Width="120" />
+                            <TextBlock Margin="8,0,0,0" VerticalAlignment="Center" Text="MB" />
+                        </StackPanel>
+                        <TextBlock Margin="0,8,0,4" Text="自动调整策略" />
+                        <ComboBox x:Name="AdjustmentStrategyComboBox" />
+                        <TextBlock Margin="0,8,0,4" Text="仍超限时" />
+                        <ComboBox x:Name="ExceededBehaviorComboBox" />
+                    </StackPanel>
+                </StackPanel>
+
+                <TextBlock x:Name="SizeLimitHintTextBlock"
+                           Grid.Row="18"
+                           Grid.Column="1"
+                           Margin="0,0,0,0"
+                           Foreground="#777"
+                           TextWrapping="Wrap"
+                           Text="当前版本仅对 GIF 启用文件大小限制。" />
             </Grid>
         </Border>
 
